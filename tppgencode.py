@@ -52,16 +52,23 @@ def browseNode(node, caminho):
 #Ja que na propria arvore tem varios nomes para o mesmo tipo, essa função ve a entrada e diz corretamente o tipo
 def whatType(str):
     inteiro = ["INTEIRO","inteiro","NUM_INTEIRO"]
+    flutuante = ["flutuante"]
 
     if(str in inteiro):
         return "INTEIRO"
 
+    if(str in flutuante):
+        return "FLUTUANTE"
+    
 def createVar(str):
 
     type = whatType(str)
 
     if(type == "INTEIRO"):
         return ir.IntType(32)
+    
+    if(type == "FLUTUANTE"):
+        return ir.FloatType()
 
 def generateCode(tree):
     llvm.initialize()
@@ -75,14 +82,14 @@ def generateCode(tree):
     target_machine = target.create_target_machine()
     module.data_layout = target_machine.target_data
 
-    print(module)
+    #print(module)
 
 
     entryBlock = None
     endBasicBlock = None
     builder = None
 
-    for node in list(PreOrderIter(tree)):
+    for node in (PreOrderIter(tree)):
         nodeAux = None
         type = None
         var = None
@@ -96,6 +103,7 @@ def generateCode(tree):
             
             var = createVar(type)
             functInfo = ir.FunctionType(var, ())
+            #print(functInfo, name, var, type)
             func = ir.Function(module, functInfo, name=name)
 
             entryBlock = func.append_basic_block('entry')
@@ -107,12 +115,9 @@ def generateCode(tree):
             if(browseNode(node, [-1,-1]).name == "declaracao_funcao"):
                 # Cria um salto para o bloco de saída
                 builder.branch(endBasicBlock)
-                print('')
+                #print('')
                 # Adiciona o bloco de saida
                 builder.position_at_end(endBasicBlock)
-
-
-
 
             
     arquive = open('./tests/meu_modulo.ll', 'w')
@@ -151,7 +156,7 @@ def main(args):
             #semanticMain(args)
             
             generateCode(tree)
-                
+            print("Codigo Gerado!")
             #if tree:
     
     except Exception as e:
