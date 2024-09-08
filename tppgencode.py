@@ -40,6 +40,9 @@ arrError = []
 module = None
 builder = None
 varList = []
+iftrue = []
+iffalse = []
+ifend = []
 
 #node, caminho = [0,1,0,0] (caminho que vai percorrer entre os filhos)
 #Retorna o node onde o caminho o levou
@@ -224,9 +227,33 @@ def expressions(node, scope):
     
     return(x_temp)
 
-                
-                
+def condicao(node, scope, func):
+    global builder
+    global iftrue
+    global iffalse
+    global ifend
+    
+    haveElse = len(node.children) > 5
+    
+    nodeAux = browseNode(node, [1])
+    expressionRes = expressions(nodeAux, scope)
+    
+    if(haveElse):
+        iftrue.append(func.append_basic_block('iftrue_1'))
+        iffalse.append(func.append_basic_block('iffalse_1'))
+        ifend.append(func.append_basic_block('ifend_1'))
 
+        builder.cbranch(expressionRes,iftrue[-1], iffalse[-1])
+    else : 
+        iftrue.append(func.append_basic_block('iftrue_1'))
+        print('teste')
+        ifend.append(func.append_basic_block('ifend_1'))
+        
+        builder.cbranch(expressionRes,iftrue[-1], ifend[-1])
+
+    builder.position_at_end(iftrue.pop())
+
+    #SE NÃO TEM SENÃO, iffalse_1 leva pra saida!
 
 
 
@@ -240,6 +267,9 @@ def generateCode(tree):
     global module
     global builder
     global varList
+    global iftrue
+    global iffalse
+    global ifend
 
     module = ir.Module('meu_modulo.bc')
     module.triple = llvm.get_process_triple()
@@ -251,15 +281,20 @@ def generateCode(tree):
     entryBlock = None
     endBasicBlock = None
     scope = None
+    func = None
+    #iftrue = []
+    #iffalse = []
+    #ifend = []    #Esses 3 com formato de pilha, para ajudar na lógica
+                   #Eles guardam blocos de código os ifs
 
     for node in (PreOrderIter(tree)):
         nodeAux = None
         type = None
         var = None
         functInfo = None
-        func = None
         name = None
 
+        #print(node.name)
         if(node.name == "declaracao_funcao"):
             
 
@@ -273,18 +308,24 @@ def generateCode(tree):
             func = ir.Function(module, functInfo, name=name)
 
             entryBlock = func.append_basic_block('entry')
+            
             endBasicBlock = func.append_basic_block('exit')
-
             builder = ir.IRBuilder(entryBlock)
 
-        if(node.name == "FIM"):
-            if(browseNode(node, [-1,-1]).name == "declaracao_funcao"):
+        if(node.name == "fim"):
+            if(browseNode(node, [-1,-1,-1]).name == "declaracao_funcao"):
                 # Cria um salto para o bloco de saída
                 #builder.branch(endBasicBlock)
                 scope = None
                 builder = ir.IRBuilder(endBasicBlock)
                 # Adiciona o bloco de saida
+                
                 builder.position_at_end(endBasicBlock)
+
+            if(browseNode(node, [-1,-1]).name == "se"):
+                #print("ue")
+                builder.branch(ifend[-1])
+                builder.position_at_end(ifend.pop())
 
                 
 
@@ -298,6 +339,17 @@ def generateCode(tree):
 
         if(node.name == "atribuicao"):
             atribuition(node, scope)
+
+        if(node.name == "se" and len(node.children) > 1):
+            
+            condicao(node,scope,func)
+
+        if(node.name == "SENAO"):
+            builder.branch(ifend[-1])
+            builder.position_at_end(iffalse.pop())
+            #print('teste')
+
+        #fim SE
     #print(varList)
             
     arquive = open('./tests/meu_modulo.ll', 'w')
