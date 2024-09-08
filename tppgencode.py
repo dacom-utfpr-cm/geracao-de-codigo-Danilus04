@@ -205,7 +205,7 @@ def expressions(node, scope):
                 if(x_temp == None):
                     x_temp = builder.load(getVarInList(nodeAux.name, scope), name='x_temp')
                 else:
-                    y_temp = builder.load(getVarInList(nodeAux.name, scope), name='x_temp')
+                    y_temp = builder.load(getVarInList(nodeAux.name, scope), name='y_temp')
                     x_temp = expressionsAux(x_temp, y_temp, expression)
                     y_temp = None
                     expression = None
