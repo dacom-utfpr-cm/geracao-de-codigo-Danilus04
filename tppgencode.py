@@ -131,15 +131,15 @@ def atribuition(node, scope):
     
     NodeAux = browseNode(node, [2])
     varRes = expressions(NodeAux, scope)
-    print(var_ptr, ' a')
-    print(varRes, ' b')
+    #print(var_ptr, ' a')
+    #print(varRes, ' b')
 
 
     builder.store(varRes,var_ptr)
 
 def expressionsAux(x_temp, y_temp, operation):
     # Definir a operação
-    print(operation)
+    #print(operation)
     if operation == '>':
         result = builder.icmp_signed('>', x_temp, y_temp, name='maior')
     elif operation == '<':
@@ -191,6 +191,7 @@ def expressions(node, scope):
     y_temp = None
     nodeAux = None
     type = None
+    expression = None
 
     for node in (PreOrderIter(node)):
         if node.name == "fator":
@@ -202,6 +203,9 @@ def expressions(node, scope):
                     x_temp = builder.load(getVarInList(nodeAux.name, scope), name='x_temp')
                 else:
                     y_temp = builder.load(getVarInList(nodeAux.name, scope), name='x_temp')
+                    x_temp = expressionsAux(x_temp, y_temp, expression)
+                    y_temp = None
+                    expression = None
             elif(nodeAux.name in flutuante or nodeAux.name in inteiro):
                 #CASO SEJA UMA CONSTANTE
                 type = createTypeVar(nodeAux.name)
@@ -210,9 +214,12 @@ def expressions(node, scope):
                     x_temp = ir.Constant(type,float(nodeAux.name))
                 else:
                     y_temp = ir.Constant(type,float(nodeAux.name))
+                    x_temp = expressionsAux(x_temp, y_temp, expression)
+                    y_temp = None
+                    expression = None
         if(node.name in sinais_aritmeticos or node.name in sinais_logicos): 
-            x_temp = expressionsAux(x_temp, y_temp, node.name)
-            y_temp = None
+            expression = node.name
+            #TODO : TRATAR PARENTESES COM RECURSIVIDADE !!!!!!
 
     
     return(x_temp)
@@ -283,15 +290,15 @@ def generateCode(tree):
 
         #Para lidar com a estrutura estranha do retorna
         if(node.name == "retorna" and len(node.children) > 1):
-            
-            builder.ret(ir.Constant(ir.IntType(32), 0))
+            nodeAux = browseNode(node, [2])
+            builder.ret(expressions(nodeAux, scope))
         
         if(node.name == "declaracao_variaveis"):
             createVar(node, scope)
 
         if(node.name == "atribuicao"):
             atribuition(node, scope)
-    print(varList)
+    #print(varList)
             
     arquive = open('./tests/meu_modulo.ll', 'w')
     arquive.write(str(module))

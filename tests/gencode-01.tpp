@@ -5,6 +5,8 @@ flutuante divisao()
 fim
 
 inteiro principal()
-    retorna(1.2*2+3+(2+3))
+    inteiro: a
+    a := 2+3+(2+3)
+    retorna(2*2+3+(2+3+ a))
 fim
 
