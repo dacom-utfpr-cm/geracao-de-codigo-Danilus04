@@ -621,8 +621,10 @@ def semanticMain(args):
     except Exception as e:
         for i in range(len(e.args[0])):
             print(e.args[0][i])
+            return e.args[0]
             #TODO : sem a flag -k, imprime de maneira errada
 
+    return 0
 
 # Programa Principal.
 if __name__ == "__main__":

@@ -683,9 +683,15 @@ def main(args):
             
             tree = generate_syntax_tree(args)  
             
-            #semanticMain(args)
             
             generateCode(tree)
+            #print(semanticMain(args))
+            semanticOutput = semanticMain(args)
+            if semanticOutput != 0:
+                for error in semanticOutput:
+                    if error.startswith("ERR-"):
+                        return -1
+                
             print("Codigo Gerado!")
             #if tree:
     
