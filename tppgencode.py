@@ -537,8 +537,14 @@ def generateCode(tree):
        
         if(node.name == "declaracao_funcao"):
             
-            #TODO: FUNÇÃO PRINCIPAL TEM QUE SE CHAMAR 'main'
             name = browseNode(node, [1,0,0]).name
+            #FUNÇÃO PRINCIPAL TEM QUE SE CHAMAR 'main'
+            #POR ISSO IREMOS TROCAR QUANDO NOME É principal OU main
+            if(name == 'principal'):
+                name = 'main'
+            elif(name == 'main'):
+                name = 'principal'
+            
             scope = name
             type = browseNode(node, [0,0,0]).name
             
@@ -566,8 +572,8 @@ def generateCode(tree):
                 scope = None
                 endBasicBlock = func.append_basic_block('exit')
                 builder = ir.IRBuilder(endBasicBlock)
-                builder.position_at_end(endBasicBlock)
                 # Adiciona o bloco de saida
+                builder.position_at_end(endBasicBlock)
                 
 
             if(browseNode(node, [-1,-1]).name == "se"):
@@ -581,7 +587,6 @@ def generateCode(tree):
         #Para lidar com a estrutura estranha do retorna
         if(node.name == "retorna" and len(node.children) > 1):
             nodeAux = browseNode(node, [2])
-            #print(nodeAux.name)
             builder.ret(expressions(nodeAux, scope))
         
         if(node.name == "declaracao_variaveis"):
