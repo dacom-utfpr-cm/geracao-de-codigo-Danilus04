@@ -335,12 +335,12 @@ def verifyReadPrint(tree):
             if(type in flutuante and not haveReadFloat):
                 _leiaF = ir.FunctionType(ir.FloatType(), [])
                 leiaF = ir.Function(module, _leiaF, "leiaFlutuante")
-                haveReadFloat = leiaF
+                haveReadFloat = True
             
             if(type in inteiro and not haveReadInt):
                 _leiaI = ir.FunctionType(ir.IntType(32), [])
                 leiaI = ir.Function(module, _leiaI, "leiaInteiro")
-                haveReadInt = leiaI
+                haveReadInt = True
             
         if(node.name == "escreva" and len(node.children) > 1):
             
@@ -352,7 +352,7 @@ def verifyReadPrint(tree):
                 havePrintFloat = True
 
             if(type in inteiro and not havePrintInt):
-                _escrevaI = ir.FunctionType(ir.VoidType(), [ir.FloatType()])
+                _escrevaI = ir.FunctionType(ir.VoidType(), [ir.IntType(32)])
                 escrevaI = ir.Function(module, _escrevaI, "escrevaInteiro")
                 havePrintInt = True
 
@@ -459,9 +459,14 @@ def generateCode(tree):
             #print('teste')
 
         if(node.name == "escreva" and len(node.children) > 1):
-            print('')
-            #nodeAux = browseNode(node, [2])
-            #TODO: FAZER ISSO AQ
+            nodeAux = browseNode(node, [2])
+            type = findFirstTypeVar(nodeAux, varList, scope)
+
+            if(type == 'INTEIRO'):
+                builder.call(escrevaI, args=[expressions(nodeAux, scope)]) 
+
+            if(type == 'FLUTUANTE'):
+                builder.call(escrevaF, args=[expressions(nodeAux, scope)])                
 
         if(node.name == "leia" and len(node.children) > 1):
             nodeAux = browseNode(node, [2,0,0])

@@ -6,7 +6,7 @@ declare i32 @"leiaInteiro"()
 
 declare float @"leiaFlutuante"()
 
-declare void @"escrevaInteiro"(float %".1")
+declare void @"escrevaInteiro"(i32 %".1")
 
 declare void @"escrevaFlutuante"(float %".1")
 
@@ -21,6 +21,10 @@ entry:
   store i32 %".4", i32* %"x"
   %".6" = call float @"leiaFlutuante"()
   store float %".6", float* %"y"
+  %"x_temp" = load i32, i32* %"x"
+  call void @"escrevaInteiro"(i32 %"x_temp")
+  %"x_temp.1" = load float, float* %"y"
+  call void @"escrevaFlutuante"(float %"x_temp.1")
   ret i32 0.0
 exit:
 }
