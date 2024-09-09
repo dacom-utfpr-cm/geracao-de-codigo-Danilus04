@@ -126,7 +126,7 @@ def p_declaracao_variaveis(p):
 #              |
 #         (atribuicao)
 
-#TODO: FAZER P_ERROR DESSA FUNÇÃO
+
 #   """declaracao_variaveis : tipo DOIS_PONTOS error"""
  
 

@@ -130,7 +130,7 @@ def atribuition(node, scope):
     global builder
     global module
     #print(module)
-    #TODO : FAZER ISSO FUNCIONAR
+    
     NodeAux = None
     
     var = browseNode(node, [0,0,0])
@@ -156,7 +156,7 @@ def expressionsAux(x_temp, y_temp, operation):
         result = builder.icmp_signed('>=', x_temp, y_temp, name='maiorIgual')
     elif operation == '<=':
         result = builder.icmp_signed('<=', x_temp, y_temp, name='menorIgual')
-    elif operation == '==':
+    elif operation == '=':
         result = builder.icmp_signed('==', x_temp, y_temp, name='igual')
     elif operation == '!=':
         result = builder.icmp_signed('!=', x_temp, y_temp, name='diferente')
@@ -191,7 +191,7 @@ def expressions(node, scope):
     inteiro = ["INTEIRO","inteiro","NUM_INTEIRO"]
     flutuante = ["flutuante","NUM_PONTO_FLUTUANTE", "FLUTUANTE"]
     sinais_aritmeticos = ["+", "-", "*", "/", "%"]
-    sinais_logicos = [">", "<", ">=", "<=", "==", "!=", "&&", "||", "!"]
+    sinais_logicos = [">", "<", ">=", "<=", "=", "!=", "&&", "||", "!"]
 
     global builder
 
@@ -277,10 +277,11 @@ def ADDAnotherVarInList(node, scope, list):
     varType = whatType(browseNode(node, [0,0]).name)
     nodeAux = browseNode(node, [2])
     while len(nodeAux.children) > 2:
-
         name = browseNode(nodeAux,[2,0,0]).name
+        #print(name)
         
         list.append({"name": name, "scope": scope, "type": varType})
+        nodeAux = browseNode(nodeAux, [0])
     
     name = browseNode(nodeAux,[0,0,0]).name
 
@@ -316,6 +317,7 @@ def verifyReadPrint(tree):
     nodeAux = None
     nameVar = None
     type = None
+    scope = None
     list = []
 
     for node in (PreOrderIter(tree)):
@@ -389,10 +391,16 @@ def generateCode(tree):
     scope = None
     func = None
     escreva = False
+    loop = None
+    loopVal = []
+    lopeEnd = []
+    #Esses 3 com formato de pilha, para ajudar na lógica
+    #Eles guardam blocos de código os ifs
     #iftrue = []
     #iffalse = []
-    #ifend = []    #Esses 3 com formato de pilha, para ajudar na lógica
-                   #Eles guardam blocos de código os ifs
+    #ifend = []
+               
+
     verifyReadPrint(tree)
     varList = []
 
@@ -404,6 +412,7 @@ def generateCode(tree):
         name = None
 
         #print(node.name)
+       
         if(node.name == "declaracao_funcao"):
             
             #TODO: FUNÇÃO PRINCIPAL TEM QUE SE CHAMAR 'main'
@@ -480,7 +489,27 @@ def generateCode(tree):
             if(type == 'FLUTUANTE'):
                 resultado_leia = builder.call(leiaF, args=[])
                 builder.store(resultado_leia, var)
-            #TODO: VERIFICAR SE ESTÁ CORRETO E SE OUTROS CóDIGOS FUNCIONA CORRETAMENTE
+        
+        if(node.name == 'repita' and len(node.children) > 1):
+            loop = builder.append_basic_block('loop')
+            builder.branch(loop)
+            builder.position_at_end(loop)
+
+        if(node.name == 'ATE' and browseNode(node,[-1]).name == 'repita'):
+            lopp_val = builder.append_basic_block('loop_val')
+            loop_end = builder.append_basic_block('loop_end')
+            # Pula para o laço de validação
+            builder.branch(lopp_val)
+            # Posiciona no inicio do bloco de validação e define o que o loop de validação irá executar
+            builder.position_at_end(lopp_val)
+            nodeAux = browseNode(node, [-1,3])
+            #FAZER EXPRESSÃO DE ATE
+            var = expressions(nodeAux, scope)
+            builder.cbranch(var, loop, loop_end)
+
+            # Posiciona no inicio do bloco do fim do loop (saída do laço) e define o que o será executado após o fim (o resto do programa)  
+            builder.position_at_end(loop_end)
+        
 
     #print(varList)
             
