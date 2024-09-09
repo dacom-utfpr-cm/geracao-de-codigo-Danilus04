@@ -556,7 +556,7 @@ def generateCode(tree):
             #print(functInfo, name, var, type)
             entryBlock = func.append_basic_block('entry')
             
-            endBasicBlock = func.append_basic_block('exit')
+            
             builder = ir.IRBuilder(entryBlock)
 
         if(node.name == "fim"):
@@ -564,13 +564,15 @@ def generateCode(tree):
                 # Cria um salto para o bloco de saída
                 #builder.branch(endBasicBlock)
                 scope = None
+                endBasicBlock = func.append_basic_block('exit')
                 builder = ir.IRBuilder(endBasicBlock)
+                builder.position_at_end(endBasicBlock)
                 # Adiciona o bloco de saida
                 
-                builder.position_at_end(endBasicBlock)
 
             if(browseNode(node, [-1,-1]).name == "se"):
-                #print("ue")
+                #print(module)
+                #print(ifend)
                 builder.branch(ifend[-1])
                 builder.position_at_end(ifend.pop())
 
