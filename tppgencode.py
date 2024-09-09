@@ -47,6 +47,8 @@ varList = []
 iftrue = []
 iffalse = []
 ifend = []
+func = None
+funcList = []
 
 #node, caminho = [0,1,0,0] (caminho que vai percorrer entre os filhos)
 #Retorna o node onde o caminho o levou
@@ -117,14 +119,29 @@ def createVar(node,scope):
 
 def getVarInList(varName, scope):
     global varList
-
+    global func
+ 
+    #print(func.name)
     for var in varList:
+        #print(type(var["var"]))
         if( varName == var["name"] and scope == var["scope"]):
             return var["var"]
+
+    for var in func.args:
+        #print(type(var))
+        if (var.name == varName and scope == func.name):
+            return var
 
     for var in varList:
         if( varName == var["name"] and None == var["scope"]):
             return var["var"]
+        
+def getFuncInList(funcName):
+    global funcList
+
+    for func in funcList:
+        if func["name"] == funcName:
+            return func["func"]
 
 def atribuition(node, scope):
     global builder
@@ -145,6 +162,34 @@ def atribuition(node, scope):
 
     builder.store(varRes,var_ptr)
 
+def giveArgsList(node, scope):
+    argsList = []
+    nodeAux = None
+    ignore_nodes = set()    
+
+    for node in (PreOrderIter(node)):
+        
+        if any(parent in ignore_nodes for parent in node.ancestors):
+            continue
+
+        # Se o nó atual for 'chamada_funcao' adiciona ao conjunto
+        # PARA QUE NÃO COLOQUE ARGUMENTOS DE OUTRAS CHAMADAS
+        if node.name in ["chamada_funcao"]:
+            #print(f"Ignorando o nó e seus filhos: {node.name}")
+            ignore_nodes.add(node)
+            continue
+
+        if(node.name == 'lista_argumentos'):
+            if(len(node.children) > 1):
+                nodeAux = browseNode(node, [2])
+            else:
+                nodeAux = browseNode(node, [0])
+       
+            argsList.insert(0,expressions(nodeAux, scope))
+        
+    
+    return argsList
+
 def expressionsAux(x_temp, y_temp, operation):
     # Definir a operação
     #print(operation)
@@ -158,14 +203,14 @@ def expressionsAux(x_temp, y_temp, operation):
         result = builder.icmp_signed('<=', x_temp, y_temp, name='menorIgual')
     elif operation == '=':
         result = builder.icmp_signed('==', x_temp, y_temp, name='igual')
-    elif operation == '!=':
+    elif operation == '<>':
         result = builder.icmp_signed('!=', x_temp, y_temp, name='diferente')
     elif operation == '&&':
         result = builder.and_(x_temp, y_temp, name='and')
     elif operation == '||':
         result = builder.or_(x_temp, y_temp, name='or')
     elif operation == '!':
-        result = builder.not_(x_temp, name='not')
+        result = builder.not_(x_temp, name='>>>> ''not')
     elif operation == '+':
         result = builder.add(x_temp, y_temp, name='soma')
     elif operation == '-':
@@ -187,46 +232,91 @@ def expressionsAux(x_temp, y_temp, operation):
     
     return result
 
-def expressions(node, scope):
+def expressions(nodeE, scope):
     inteiro = ["INTEIRO","inteiro","NUM_INTEIRO"]
     flutuante = ["flutuante","NUM_PONTO_FLUTUANTE", "FLUTUANTE"]
     sinais_aritmeticos = ["+", "-", "*", "/", "%"]
-    sinais_logicos = [">", "<", ">=", "<=", "=", "!=", "&&", "||", "!"]
+    sinais_logicos = [">", "<", ">=", "<=", "=", "<>", "&&", "||", "!"]
 
     global builder
 
     x_temp = None
     y_temp = None
     nodeAux = None
-    type = None
+    varType = None
     expression = None
+    var = None
+    func = None
+    ignore_nodes = set()
 
-    for node in (PreOrderIter(node)):
+    for node in (PreOrderIter(nodeE)):
+
+        # PARA NAO LER FATORES DAS CHAMADAS DE FUNÇÃO
+        if any(parent in ignore_nodes for parent in node.ancestors):
+            continue
+
+        # Se o nó atual for 'chamada_funcao' ou 'lista_argumentos', adiciona ao conjunto
+        if node.name in ["chamada_funcao", "lista_argumentos"]:
+            #print(f"Ignorando o nó e seus filhos: {node.name}")
+            ignore_nodes.add(node)
+            continue
+
+        #print(node.name)
         if node.name == "fator":
-            nodeAux = browseNode(node, [0,0])
-            if(nodeAux.name == "ID"):
+            #nodeAux = browseNode(node, [0,0])
+
+            if(browseNode(node, [0]).name == 'chamada_funcao'):
+                
+                nodeAux = browseNode(node, [0,0,0])
+                func = getFuncInList(nodeAux.name)
+                
+                nodeAux = browseNode(node, [0,2])
+                if(x_temp == None):
+                    x_temp = builder.call(func, giveArgsList(nodeAux, scope))
+                else:
+                    y_temp = builder.call(func, giveArgsList(nodeAux, scope))
+                #print(x_temp, y_temp, expression)
+                    
+            elif(browseNode(node, [0,0]).name == "ID"):
                 #CASO SEJA UM ID
-                nodeAux = browseNode(nodeAux, [0])
+                nodeAux = browseNode(node, [0,0,0])
                 if(x_temp == None):
-                    x_temp = builder.load(getVarInList(nodeAux.name, scope), name='x_temp')
+                    var = getVarInList(nodeAux.name, scope)
+                    # SE NAO FOR PARAMETRO
+                    if isinstance(var, ir.instructions.AllocaInstr) or isinstance(var, ir.values.GlobalVariable):
+                        x_temp = builder.load(var, name='x_temp')
+                    else:
+                        x_temp = var
+
                 else:
-                    y_temp = builder.load(getVarInList(nodeAux.name, scope), name='y_temp')
+                    var = getVarInList(nodeAux.name, scope)
+                    # SE NAO FOR PARAMETRO
+                    if isinstance(var, ir.instructions.AllocaInstr) or isinstance(var, ir.values.GlobalVariable):
+                        y_temp = builder.load(var, name='y_temp')
+                    else:
+                        y_temp = var
+
+                    #print(x_temp, y_temp, expression)
                     x_temp = expressionsAux(x_temp, y_temp, expression)
                     y_temp = None
                     expression = None
-            elif(nodeAux.name in flutuante or nodeAux.name in inteiro):
+            elif(browseNode(node, [0,0]).name in flutuante or browseNode(node, [0,0]).name in inteiro):
                 #CASO SEJA UMA CONSTANTE
-                type = createTypeVar(nodeAux.name)
+                nodeAux = browseNode(node, [0,0])
+                varType = createTypeVar(nodeAux.name)
                 nodeAux = browseNode(nodeAux, [0])
                 if(x_temp == None):
-                    x_temp = ir.Constant(type,float(nodeAux.name))
+                    x_temp = ir.Constant(varType,float(nodeAux.name))
                 else:
-                    y_temp = ir.Constant(type,float(nodeAux.name))
+                    y_temp = ir.Constant(varType,float(nodeAux.name))
                     x_temp = expressionsAux(x_temp, y_temp, expression)
                     y_temp = None
                     expression = None
+            
+
         if(node.name in sinais_aritmeticos or node.name in sinais_logicos): 
             expression = node.name
+            #print(node.name)
             #TODO : TRATAR PARENTESES COM RECURSIVIDADE !!!!!!
 
     
@@ -251,7 +341,7 @@ def condicao(node, scope, func):
         builder.cbranch(expressionRes,iftrue[-1], iffalse[-1])
     else : 
         iftrue.append(func.append_basic_block('iftrue_1'))
-        print('teste')
+        #print('teste')
         ifend.append(func.append_basic_block('ifend_1'))
         
         builder.cbranch(expressionRes,iftrue[-1], ifend[-1])
@@ -360,7 +450,37 @@ def verifyReadPrint(tree):
 
         
     #if(havePrint):
-        
+
+def verifyParams(functionDeclarationNode,functionName):
+    global varList
+    global builder
+
+    nodeAux = browseNode(functionDeclarationNode, [1,2])
+
+    name = None
+    typel = None
+    typeList = []
+    varNameList = []
+    var = None
+    type = None
+
+    for node in (PreOrderIter(nodeAux)):
+        if(node.name == "parametro"):
+            #typel = whatType(browseNode(node, [0,0]).name)
+
+            name = browseNode(node, [2,0]).name
+
+            type = createTypeVar(browseNode(node, [0,0]).name)
+
+            typeList.append(type)
+
+            varNameList.append(name)   
+
+            #varList.append({"scope": functionName, "name": name,"var" : var, "type": typel})
+
+
+    return(varNameList, typeList)
+            
 
 def generateCode(tree):
     llvm.initialize()
@@ -378,6 +498,8 @@ def generateCode(tree):
     global leiaI
     global escrevaF
     global escrevaI
+    global func
+    global funcList
 
     module = ir.Module('meu_modulo.bc')
     module.triple = llvm.get_process_triple()
@@ -389,7 +511,7 @@ def generateCode(tree):
     entryBlock = None
     endBasicBlock = None
     scope = None
-    func = None
+    #func = None
     escreva = False
     loop = None
     loopVal = []
@@ -421,10 +543,17 @@ def generateCode(tree):
             type = browseNode(node, [0,0,0]).name
             
             var = createTypeVar(type)
-            functInfo = ir.FunctionType(var, ())
-            #print(functInfo, name, var, type)
-            func = ir.Function(module, functInfo, name=name)
+            
+            varNameList, typeList = verifyParams(node, name)
 
+            functInfo = ir.FunctionType(var, typeList)
+            func = ir.Function(module, functInfo, name=name)
+            funcList.append({"name": name, "func": func})
+            
+            for i in range(len(varNameList)):
+                func.args[i].name = varNameList[i]
+                #print(func.args[i],  " : " , func.args[i].name)
+            #print(functInfo, name, var, type)
             entryBlock = func.append_basic_block('entry')
             
             endBasicBlock = func.append_basic_block('exit')
@@ -450,6 +579,7 @@ def generateCode(tree):
         #Para lidar com a estrutura estranha do retorna
         if(node.name == "retorna" and len(node.children) > 1):
             nodeAux = browseNode(node, [2])
+            #print(nodeAux.name)
             builder.ret(expressions(nodeAux, scope))
         
         if(node.name == "declaracao_variaveis"):
