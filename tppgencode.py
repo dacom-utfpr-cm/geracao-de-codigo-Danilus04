@@ -34,6 +34,10 @@ error_handler = MyError('GenCodeErrors')
 
 root = None
 
+leiaF = None
+leiaI = None
+escrevaF = None
+escrevaI = None
 showKey = False 
 haveTPP = False
 arrError = []
@@ -58,7 +62,7 @@ def browseNode(node, caminho):
 #Ja que na propria arvore tem varios nomes para o mesmo tipo, essa função ve a entrada e diz corretamente o tipo
 def whatType(str):
     inteiro = ["INTEIRO","inteiro","NUM_INTEIRO"]
-    flutuante = ["flutuante","NUM_PONTO_FLUTUANTE"]
+    flutuante = ["flutuante","NUM_PONTO_FLUTUANTE","FLUTUANTE"]
 
     if(str in inteiro):
         return "INTEIRO"
@@ -67,7 +71,7 @@ def whatType(str):
         return "FLUTUANTE"
     
 def createTypeVar(str):
-
+    
     type = whatType(str)
 
     if(type == "INTEIRO"):
@@ -84,6 +88,7 @@ def createVar(node,scope):
     global module
 
     type = createTypeVar(browseNode(node, [0,0]).name)
+    typel = whatType(browseNode(node, [0,0]).name)
     nodeAux = browseNode(node, [2])
     while len(nodeAux.children) > 2:
 
@@ -96,7 +101,7 @@ def createVar(node,scope):
 
         var.initializer = ir.Constant(type, 0)
         var.align = 4
-        varList.append({"scope": scope, "name": name,"var" : var})
+        varList.append({"scope": scope, "name": name,"var" : var, "type": typel})
         nodeAux = browseNode(nodeAux, [0])
     
     name = browseNode(nodeAux,[0,0,0]).name
@@ -108,7 +113,7 @@ def createVar(node,scope):
 
     var.initializer = ir.Constant(type, 0)
     var.align = 4
-    varList.append({"scope": scope, "name": name,"var" : var})
+    varList.append({"scope": scope, "name": name,"var" : var, "type": typel})
 
 def getVarInList(varName, scope):
     global varList
@@ -184,7 +189,7 @@ def expressionsAux(x_temp, y_temp, operation):
 
 def expressions(node, scope):
     inteiro = ["INTEIRO","inteiro","NUM_INTEIRO"]
-    flutuante = ["flutuante","NUM_PONTO_FLUTUANTE"]
+    flutuante = ["flutuante","NUM_PONTO_FLUTUANTE", "FLUTUANTE"]
     sinais_aritmeticos = ["+", "-", "*", "/", "%"]
     sinais_logicos = [">", "<", ">=", "<=", "==", "!=", "&&", "||", "!"]
 
@@ -255,8 +260,105 @@ def condicao(node, scope, func):
 
     #SE NÃO TEM SENÃO, iffalse_1 leva pra saida!
 
+def getTypeInList(varName, scope, list):
 
+    for var in list:
+        if( varName == var["name"] and scope == var["scope"]):
+            return var["type"]
 
+    for var in list:
+        if( varName == var["name"] and None == var["scope"]):
+            return var["type"]
+
+#ESSA LISTA É PARA VERIFICAR NOME DE VARIAVEL E TIPO
+#PARA VERIFICAR SE PRECISA DE FUNÇÃO DE ESCREVER E LER
+def ADDAnotherVarInList(node, scope, list):
+
+    varType = whatType(browseNode(node, [0,0]).name)
+    nodeAux = browseNode(node, [2])
+    while len(nodeAux.children) > 2:
+
+        name = browseNode(nodeAux,[2,0,0]).name
+        
+        list.append({"name": name, "scope": scope, "type": varType})
+    
+    name = browseNode(nodeAux,[0,0,0]).name
+
+    list.append({"name": name, "scope": scope, "type": varType})
+
+def findFirstTypeVar(expressionNode,list,scope):
+    nodeAux = None
+    for node in (PreOrderIter(expressionNode)):
+        if(node.name == 'fator'):
+            nodeAux = browseNode(node, [0,0])
+            if(nodeAux.name == 'ID'):
+                #print(nodeAux.name)
+                nodeAux = browseNode(nodeAux, [0])
+                return getTypeInList(nodeAux.name,scope,list)
+            else:
+                return whatType(nodeAux.name)    
+
+def verifyReadPrint(tree):
+    inteiro = ["INTEIRO","inteiro","NUM_INTEIRO"]
+    flutuante = ["flutuante","NUM_PONTO_FLUTUANTE", "FLUTUANTE"]
+    global module
+    global builder
+    global leiaF
+    global leiaI
+    global escrevaF
+    global escrevaI
+    
+    haveReadInt = False
+    haveReadFloat = False
+    havePrintInt = False
+    havePrintFloat = False
+
+    nodeAux = None
+    nameVar = None
+    type = None
+    list = []
+
+    for node in (PreOrderIter(tree)):
+        
+        #print(node.name)
+        if(node.name == "declaracao_funcao"):
+            scope = browseNode(node, [1,0,0]).name
+
+        if(node.name == "declaracao_variaveis"):
+            ADDAnotherVarInList(node,scope,list)
+
+        if(node.name == "leia" and len(node.children) > 1):
+            #por enquanto ta com nome da variavel
+            nameVar = browseNode(node,[2,0,0]).name
+            type = getTypeInList(nameVar, scope, list)
+
+            if(type in flutuante and not haveReadFloat):
+                _leiaF = ir.FunctionType(ir.FloatType(), [])
+                leiaF = ir.Function(module, _leiaF, "leiaFlutuante")
+                haveReadFloat = leiaF
+            
+            if(type in inteiro and not haveReadInt):
+                _leiaI = ir.FunctionType(ir.IntType(32), [])
+                leiaI = ir.Function(module, _leiaI, "leiaInteiro")
+                haveReadInt = leiaI
+            
+        if(node.name == "escreva" and len(node.children) > 1):
+            
+            nodeAux = browseNode(node, [2])
+            type = findFirstTypeVar(nodeAux,list,scope)
+            if(type in flutuante and not havePrintFloat):
+                _escrevaF = ir.FunctionType(ir.VoidType(), [ir.FloatType()])
+                escrevaF = ir.Function(module, _escrevaF, "escrevaFlutuante")
+                havePrintFloat = True
+
+            if(type in inteiro and not havePrintInt):
+                _escrevaI = ir.FunctionType(ir.VoidType(), [ir.FloatType()])
+                escrevaI = ir.Function(module, _escrevaI, "escrevaInteiro")
+                havePrintInt = True
+
+        
+    #if(havePrint):
+        
 
 def generateCode(tree):
     llvm.initialize()
@@ -270,6 +372,10 @@ def generateCode(tree):
     global iftrue
     global iffalse
     global ifend
+    global leiaF
+    global leiaI
+    global escrevaF
+    global escrevaI
 
     module = ir.Module('meu_modulo.bc')
     module.triple = llvm.get_process_triple()
@@ -282,10 +388,13 @@ def generateCode(tree):
     endBasicBlock = None
     scope = None
     func = None
+    escreva = False
     #iftrue = []
     #iffalse = []
     #ifend = []    #Esses 3 com formato de pilha, para ajudar na lógica
                    #Eles guardam blocos de código os ifs
+    verifyReadPrint(tree)
+    varList = []
 
     for node in (PreOrderIter(tree)):
         nodeAux = None
@@ -297,7 +406,7 @@ def generateCode(tree):
         #print(node.name)
         if(node.name == "declaracao_funcao"):
             
-
+            #TODO: FUNÇÃO PRINCIPAL TEM QUE SE CHAMAR 'main'
             name = browseNode(node, [1,0,0]).name
             scope = name
             type = browseNode(node, [0,0,0]).name
@@ -349,7 +458,25 @@ def generateCode(tree):
             builder.position_at_end(iffalse.pop())
             #print('teste')
 
-        #fim SE
+        if(node.name == "escreva" and len(node.children) > 1):
+            print('')
+            #nodeAux = browseNode(node, [2])
+            #TODO: FAZER ISSO AQ
+
+        if(node.name == "leia" and len(node.children) > 1):
+            nodeAux = browseNode(node, [2,0,0])
+            name = nodeAux.name
+            type = getTypeInList(name, scope, varList)
+            var = getVarInList(name, scope)
+            if(type == 'INTEIRO'):
+                resultado_leia = builder.call(leiaI, args=[])
+                builder.store(resultado_leia, var)
+
+            if(type == 'FLUTUANTE'):
+                resultado_leia = builder.call(leiaF, args=[])
+                builder.store(resultado_leia, var)
+            #TODO: VERIFICAR SE ESTÁ CORRETO E SE OUTROS CóDIGOS FUNCIONA CORRETAMENTE
+
     #print(varList)
             
     arquive = open('./tests/meu_modulo.ll', 'w')
