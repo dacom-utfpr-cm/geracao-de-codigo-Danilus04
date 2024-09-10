@@ -7,15 +7,26 @@ define i32 @"main"()
 {
 entry:
   %"ret" = alloca i32, align 4
-  store i32 10.0, i32* @"a"
+  store i32 25, i32* @"a"
   %"x_temp" = load i32, i32* @"a"
-  %"maior" = icmp sgt i32 %"x_temp", 5.0
-  br i1 %"maior", label %"iftrue_1", label %"ifend_1"
+  %"maior" = icmp sgt i32 %"x_temp", 5
+  br i1 %"maior", label %"iftrue_1", label %"iffalse_1"
 iftrue_1:
-  store i32 1.0, i32* %"ret"
+  %"x_temp.1" = load i32, i32* @"a"
+  %"menor" = icmp slt i32 %"x_temp.1", 20
+  br i1 %"menor", label %"iftrue_1.1", label %"iffalse_1.1"
+iffalse_1:
+  store i32 0, i32* %"ret"
   br label %"ifend_1"
 ifend_1:
-  %"x_temp.1" = load i32, i32* %"ret"
-  ret i32 %"x_temp.1"
-exit:
+  %"x_temp.2" = load i32, i32* %"ret"
+  ret i32 %"x_temp.2"
+iftrue_1.1:
+  store i32 1, i32* %"ret"
+  br label %"ifend_1.1"
+iffalse_1.1:
+  store i32 2, i32* %"ret"
+  br label %"ifend_1.1"
+ifend_1.1:
+  br label %"ifend_1"
 }

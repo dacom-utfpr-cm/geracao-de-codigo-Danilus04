@@ -306,9 +306,9 @@ def expressions(nodeE, scope):
                 varType = createTypeVar(nodeAux.name)
                 nodeAux = browseNode(nodeAux, [0])
                 if(x_temp == None):
-                    x_temp = ir.Constant(varType,float(nodeAux.name))
+                    x_temp = ir.Constant(varType,nodeAux.name)
                 else:
-                    y_temp = ir.Constant(varType,float(nodeAux.name))
+                    y_temp = ir.Constant(varType,nodeAux.name)
                     x_temp = expressionsAux(x_temp, y_temp, expression)
                     y_temp = None
                     expression = None
@@ -570,10 +570,11 @@ def generateCode(tree):
                 # Cria um salto para o bloco de saída
                 #builder.branch(endBasicBlock)
                 scope = None
-                endBasicBlock = func.append_basic_block('exit')
-                builder = ir.IRBuilder(endBasicBlock)
+                #TODO: PARA FAZER RETURN DO JEITO CORRETO
                 # Adiciona o bloco de saida
-                builder.position_at_end(endBasicBlock)
+                #endBasicBlock = func.append_basic_block('exit')
+                #builder = ir.IRBuilder(endBasicBlock)
+                #builder.position_at_end(endBasicBlock)
                 
 
             if(browseNode(node, [-1,-1]).name == "se"):
